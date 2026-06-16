@@ -201,6 +201,7 @@ select{height:44px;border:1px solid var(--border2);border-radius:var(--rs);backg
     <div class="pin-grid" id="pin-grid"></div>
     <div class="actions">
       <button class="btn btn-print" onclick="openModal()">🖨 Print</button>
+      <button class="btn" onclick="saveResults()">💾 Save</button>
       <button class="btn btn-clear" onclick="clearCable()">🗑 Clear</button>
     </div>
   </div>
@@ -621,6 +622,30 @@ function doPrint(){
   sheet.innerHTML=html;window.print();
 }
 
+function saveResults(){
+  const rows=[['Cable','Pin','Voltage','Note']];
+  for(const c of['A','B']){
+    for(let p=1;p<=PINS;p++){
+      const d=tdata[c][p];
+      if(!d||!d.v)continue;
+      rows.push([`T73${c.toLowerCase()}`,p,d.v,d.note||'']);
+    }
+  }
+  if(rows.length===1){
+    alert('No recorded voltages to save.');
+    return;
+  }
+  const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const filename = `bcm-voltage-results-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.csv`;
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(link.href);
+}
 
 loadAll();
 renderPins();
