@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<title>BCM Voltage Tracker</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f5f4;--surface:#fff;--surface2:#f0efee;
+  --border:#e2e0de;--border2:#cccac8;
+  --text:#1a1a18;--text2:#6b6a68;--text3:#9b9a98;
+  --accent:#1a56db;--accent-bg:#eff4ff;--accent-border:#c3d2f9;
+  --success:#0e7a4a;--success-bg:#ecfdf5;--success-border:#a7f0c9;
+  --r:10px;--rs:6px;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#111110;--surface:#1c1c1a;--surface2:#242422;
+  --border:#2e2e2c;--border2:#3a3a38;
+  --text:#f0eeec;--text2:#a8a7a5;--text3:#6b6a68;
+  --accent:#6b8fef;--accent-bg:#1a2040;--accent-border:#2a3a70;
+  --success:#34d399;--success-bg:#052e1c;--success-border:#064e2e;
+}}
+html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:16px;-webkit-text-size-adjust:100%;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+body{position:fixed;width:100%;height:100%;overflow:hidden}
+.main{position:absolute;top:0;left:0;width:100%;height:100%;max-width:700px;margin:0 auto;padding:12px;overflow-y:auto;-webkit-overflow-scrolling:touch;right:0;left:50%;transform:translateX(-50%)}
+
+/* NAV */
+.nav-tabs{display:flex;border-bottom:2px solid var(--border);margin-bottom:14px}
+.nav-tab{flex:1;padding:12px 0;font-size:15px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text2);cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;min-height:44px;display:flex;align-items:center;justify-content:center}
+.nav-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* CABLE TABS */
+.cable-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.ctab{padding:12px 0;font-size:15px;font-weight:500;border:1px solid var(--border2);border-radius:var(--r);background:var(--surface);color:var(--text2);cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation;min-height:44px;display:flex;align-items:center;justify-content:center;-webkit-user-select:none}
+.ctab.active{background:var(--accent-bg);color:var(--accent);border-color:var(--accent-border)}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;text-align:center}
+.stat-val{font-size:24px;font-weight:600}
+.stat-lbl{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+.stat.s-done .stat-val{color:var(--success)}
+
+/* PROGRESS */
+.prog-wrap{margin-bottom:14px}
+.prog-label{display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:5px}
+.prog-bar{height:6px;background:var(--border);border-radius:99px;overflow:hidden}
+.prog-fill{height:100%;background:var(--accent);border-radius:99px;transition:width .3s}
+
+/* CONTROLS */
+.controls{display:flex;gap:8px;margin-bottom:12px}
+.sw{flex:1;position:relative}
+.sw svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none}
+input[type=text]{width:100%;height:44px;border:1px solid var(--border2);border-radius:var(--rs);background:var(--surface);color:var(--text);font-size:16px;padding:10px 12px;outline:none;-webkit-appearance:none;box-sizing:border-box}
+input[type=text]:focus{border-color:var(--accent);background:var(--surface)}
+.sw input{padding-left:36px}
+select{height:44px;border:1px solid var(--border2);border-radius:var(--rs);background:var(--surface);color:var(--text);font-size:15px;padding:10px 10px;outline:none;cursor:pointer;-webkit-appearance:none;min-width:100px;box-sizing:border-box}
+
+/* PIN GRID */
+.pin-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media(max-width:360px){.pin-grid{grid-template-columns:1fr}}
+.pin-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;border-left:3px solid var(--border)}
+.pin-card.has-val{border-left-color:var(--success)}
+.pin-card.card-bad{border-left-color:#e24b4b}
+.pin-card.card-warn{border-left-color:#f0a500}
+
+.pin-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.pin-num{font-size:13px;font-weight:700;color:var(--text)}
+.pin-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;text-transform:uppercase;letter-spacing:.04em}
+.badge-ok{background:var(--success-bg);color:var(--success);border:1px solid var(--success-border)}
+.badge-empty{background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
+
+.pin-input{width:100%;height:44px;border:1px solid var(--border2);border-radius:var(--rs);background:var(--surface2);color:var(--text);font-size:16px;padding:10px;outline:none;font-family:inherit;margin-bottom:6px;-webkit-appearance:none;box-sizing:border-box}
+.pin-input:focus{border-color:var(--accent);background:var(--surface)}
+
+.cmp-bar{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.cmp-pill{font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px}
+.cp-good{background:var(--success-bg);color:var(--success);border:1px solid var(--success-border)}
+.cp-low{background:#fef9c3;color:#713f12;border:1px solid #fde68a}
+.cp-high{background:#ffedd5;color:#7c2d12;border:1px solid #fdba74}
+.cp-bad{background:#fee2e2;color:#7f1d1d;border:1px solid #fca5a5}
+.cp-sig{background:var(--surface2);color:var(--text2);border:1px solid var(--border)}
+.cmp-delta{font-size:11px;color:var(--text3);font-family:monospace}
+@media(prefers-color-scheme:dark){
+  .cp-low{background:#422006;color:#fde68a;border-color:#92400e}
+  .cp-high{background:#431407;color:#fdba74;border-color:#9a3412}
+  .cp-bad{background:#450a0a;color:#fca5a5;border-color:#7f1d1d}
+}
+
+.note-btn{font-size:12px;color:var(--text3);background:none;border:none;padding:8px 0;font-family:inherit;cursor:pointer;display:flex;align-items:center;gap:4px;min-height:44px;-webkit-tap-highlight-color:transparent;touch-action:manipulation;-webkit-user-select:none}
+.note-area{margin-top:6px}
+.note-input{width:100%;height:44px;border:1px solid var(--border);border-radius:var(--rs);background:var(--surface2);color:var(--text);font-size:14px;padding:10px 8px;outline:none;font-family:inherit;box-sizing:border-box;-webkit-appearance:none}
+.note-input:focus{border-color:var(--accent)}
+
+.empty{grid-column:1/-1;text-align:center;padding:32px 16px;color:var(--text3)}
+
+/* ACTIONS */
+.actions{display:flex;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border)}
+.btn{flex:1;min-height:48px;height:auto;padding:12px 10px;border:1px solid var(--border2);border-radius:var(--rs);background:var(--surface);color:var(--text);font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;-webkit-tap-highlight-color:transparent;touch-action:manipulation;-webkit-user-select:none}
+.btn-print{background:var(--accent-bg);color:var(--accent);border-color:var(--accent-border)}
+.btn-clear{color:#b91c1c;border-color:#fecaca}
+
+/* INFO PAGE */
+#page-info{display:none}
+.legend-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:14px}
+.legend-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:10px}
+.legend-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px}
+.leg-row{display:flex;align-items:flex-start;gap:8px}
+.leg-tag{min-width:46px;font-size:11px;font-weight:700;font-family:monospace;padding:2px 6px;border-radius:5px;text-align:center;flex-shrink:0}
+.lt-30{background:#fef9c3;color:#713f12}.lt-31{background:#fee2e2;color:#7f1d1d}
+.lt-58{background:#dbeafe;color:#1e3a8a}.lt-85{background:#f3e8ff;color:#4a1d96}
+.lt-fl{background:#dcfce7;color:#14532d}.lt-30g{background:#ffedd5;color:#7c2d12}
+.lt-sig{background:var(--surface2);color:var(--text2)}
+@media(prefers-color-scheme:dark){
+  .lt-30{background:#422006;color:#fde68a}.lt-31{background:#450a0a;color:#fca5a5}
+  .lt-58{background:#1e3a5f;color:#93c5fd}.lt-85{background:#2e1065;color:#d8b4fe}
+  .lt-fl{background:#052e16;color:#86efac}.lt-30g{background:#431407;color:#fdba74}
+}
+.leg-def{font-size:12px;color:var(--text2);line-height:1.4}
+
+.info-controls{display:flex;gap:8px;margin-bottom:10px}
+.info-count{font-size:12px;color:var(--text3);margin-bottom:10px}
+.info-list{display:flex;flex-direction:column;gap:6px}
+.icard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;display:flex;gap:12px;align-items:flex-start;border-left:3px solid var(--border2)}
+.icard.t-input{border-left-color:#378ADD}.icard.t-output{border-left-color:#1D9E75}
+.icard.t-vacant{border-left-color:var(--border);opacity:.55}
+.icard.t-can{border-left-color:#7F77DD}.icard.t-lin{border-left-color:#EF9F27}
+.ipnum{min-width:30px;font-size:13px;font-weight:700;color:var(--text2);padding-top:1px}
+.ibody{flex:1}
+.idesc{font-size:13px;color:var(--text);line-height:1.45}
+.imeta{display:flex;gap:5px;margin-top:5px;flex-wrap:wrap}
+.ibadge{font-size:11px;padding:2px 8px;border-radius:99px;font-weight:600}
+.ib-input{background:#EFF4FF;color:#1a3a99}.ib-output{background:#ecfdf5;color:#0e7a4a}
+.ib-vacant{background:var(--surface2);color:var(--text3)}
+.ib-can{background:#EEEDFE;color:#3C3489}.ib-lin{background:#FAEEDA;color:#7a4a00}
+.ib-term{background:var(--surface2);color:var(--text2);font-family:monospace}
+.iempty{text-align:center;padding:32px;color:var(--text3)}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;overflow-y:auto;padding:16px;-webkit-overflow-scrolling:touch;align-items:flex-start;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);width:100%;max-width:580px;margin:auto;overflow:hidden}
+.modal-hdr{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.modal-title{font-size:15px;font-weight:600}
+.modal-close{background:none;border:none;font-size:22px;cursor:pointer;color:var(--text2);padding:8px;line-height:1;touch-action:manipulation;min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center}
+.modal-body{padding:16px;max-height:65vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.modal-ftr{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+.res-sec{margin-bottom:20px}
+.res-sec h3{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.res-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.res-tbl th{text-align:left;padding:5px 6px;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;border-bottom:1px solid var(--border)}
+.res-tbl td{padding:5px 6px;color:var(--text);border-bottom:1px solid var(--border);vertical-align:top}
+.res-tbl tr:last-child td{border-bottom:none}
+.no-data{font-size:13px;color:var(--text3);text-align:center;padding:16px 0}
+.sum-row{display:flex;gap:16px;margin-bottom:12px;font-size:13px;color:var(--text2)}
+.sum-row strong{color:var(--text)}
+@media print{
+  body{background:#fff;color:#000}
+  .nav-tabs,.cable-tabs,.stats,.prog-wrap,.controls,.pin-grid,.actions,#page-info{display:none!important}
+  .print-sheet{display:block!important}
+}
+.print-sheet{display:none}
+</style>
+</head>
+<body>
+<div class="main">
+
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchPage('tracker')">⚡ Tracker</button>
+    <button class="nav-tab" onclick="switchPage('info')">📋 Pin Info</button>
+  </div>
+
+  <!-- TRACKER -->
+  <div id="page-tracker">
+    <div class="cable-tabs">
+      <button class="ctab active" id="ct-a" onclick="switchCable('A')">Cable A — T73a</button>
+      <button class="ctab" id="ct-b" onclick="switchCable('B')">Cable B — T73b</button>
+    </div>
+    <div class="stats">
+      <div class="stat s-done"><div class="stat-val" id="s-done">0</div><div class="stat-lbl">Tested</div></div>
+      <div class="stat"><div class="stat-val" id="s-left">73</div><div class="stat-lbl">Remaining</div></div>
+    </div>
+    <div class="prog-wrap">
+      <div class="prog-label"><span id="prog-lbl">Cable A progress</span><span id="prog-pct">0%</span></div>
+      <div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+    </div>
+    <div class="controls">
+      <div class="sw">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="search" placeholder="Search pin…" oninput="renderPins()"/>
+      </div>
+      <select id="filter" onchange="renderPins()">
+        <option value="all">All</option>
+        <option value="done">Tested</option>
+        <option value="empty">Untested</option>
+      </select>
+    </div>
+    <div class="pin-grid" id="pin-grid"></div>
+    <div class="actions">
+      <button class="btn btn-print" onclick="openModal()">🖨 Print</button>
+      <button class="btn btn-clear" onclick="clearCable()">🗑 Clear</button>
+    </div>
+  </div>
+
+  <!-- INFO -->
+  <div id="page-info">
+    <div class="cable-tabs">
+      <button class="ctab active" id="it-a" onclick="switchInfoCable('T73a')">T73a — Cable A</button>
+      <button class="ctab" id="it-b" onclick="switchInfoCable('T73b')">T73b — Cable B</button>
+    </div>
+    <div class="legend-box">
+      <div class="legend-title">⚡ Terminal voltage legend</div>
+      <div class="legend-grid">
+        <div class="leg-row"><span class="leg-tag lt-30">30</span><span class="leg-def">Permanent +12V — battery direct, always live</span></div>
+        <div class="leg-row"><span class="leg-tag lt-31">31</span><span class="leg-def">Ground — 0V chassis earth return</span></div>
+        <div class="leg-row"><span class="leg-tag lt-58">58d/r/l</span><span class="leg-def">Side/parking lights — +12V when lights ON</span></div>
+        <div class="leg-row"><span class="leg-tag lt-85">85</span><span class="leg-def">Relay coil — trigger side (~0V when active)</span></div>
+        <div class="leg-row"><span class="leg-tag lt-fl">FL</span><span class="leg-def">Front left parking light — +12V with lights ON</span></div>
+        <div class="leg-row"><span class="leg-tag lt-30g">30G</span><span class="leg-def">Switched interior supply — +12V ignition/door</span></div>
+        <div class="leg-row"><span class="leg-tag lt-sig">—</span><span class="leg-def">Signal/control — 0V or +12V per switch state</span></div>
+      </div>
+    </div>
+    <div class="info-controls">
+      <div class="sw" style="flex:1;position:relative">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="isearch" placeholder="Search pin or component…" oninput="renderInfo()" style="padding-left:36px"/>
+      </div>
+      <select id="ifilter" onchange="renderInfo()">
+        <option value="all">All</option>
+        <option value="input">Input</option>
+        <option value="output">Output</option>
+        <option value="vacant">Vacant</option>
+        <option value="can">CAN</option>
+        <option value="lin">LIN</option>
+      </select>
+    </div>
+    <div class="info-count" id="icount"></div>
+    <div class="info-list" id="ilist"></div>
+  </div>
+
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="handleOverlay(event)">
+  <div class="modal">
+    <div class="modal-hdr">
+      <span class="modal-title">📋 Results — BCM VW T5</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-ftr">
+      <button class="btn" onclick="closeModal()">Close</button>
+      <button class="btn btn-print" onclick="doPrint()">🖨 Print</button>
+    </div>
+  </div>
+</div>
+<div class="print-sheet" id="print-sheet"></div>
+
+<script>
+// ── PIN DATA ────────────────────────────────────────────────
+const PIN_DATA={
+T73a:[
+{p:1,d:"Right main beam bulb -M32- / Right dip beam screen motor -V295-",io:"Output",t:"58d"},
+{p:2,d:"Left dipped beam bulb -M29- / Left gas discharge light control unit -J343-",io:"Output",t:""},
+{p:3,d:"Battery isolation relay -J7- / Second battery charging circuit relay -J713-",io:"Output",t:"85"},
+{p:4,d:"B129 Connection (interior light 31l) / Front interior light -W1- / Deactivation button for vehicle inclination sender -E360-",io:"Output",t:""},
+{p:5,d:"Right side light bulb -M3- / Right day driving light bulb -L175-",io:"Output",t:""},
+{p:6,d:"Drive train CAN bus isolation relay -J788-",io:"Output",t:""},
+{p:7,d:"Light switch -E1- / B522 Connection (FL), in main wiring harness",io:"Input",t:"FL"},
+{p:8,d:"Vacant",io:"Vacant",t:""},{p:9,d:"Vacant",io:"Vacant",t:""},
+{p:10,d:"Rear lid lock motor -V120-",io:"Output",t:""},
+{p:11,d:"Left sliding door contact strip -F353- / Right sliding door contact strip -F352- / Rear lid lock unit -F256-",io:"Output",t:""},
+{p:12,d:"Driver door central locking motor -V56-",io:"Output",t:""},
+{p:13,d:"Vacant",io:"Vacant",t:""},
+{p:14,d:"366 Earth connection 1, in main wiring harness (terminal 31, central locking)",io:"Input",t:"31"},
+{p:15,d:"Left/Right sliding door contact strip / Front passenger door central locking motor -V57- / Rear lid lock unit -F256-",io:"Output",t:""},
+{p:16,d:"Fuse 8 on fuse holder B -SB8- (terminal 30, central locking) / A194 Connection (convenience system)",io:"Input",t:"30"},
+{p:17,d:"Left sliding door contact strip -F353- / Left sliding door control unit -J558- / Front passenger door contact switch -F3- / Rear left central locking lock unit -F222-",io:"Input",t:""},
+{p:18,d:"Right sliding door contact strip -F352- / Right sliding door control unit -J731- / Rear right central locking lock unit -F223-",io:"Input",t:""},
+{p:19,d:"Driver door contact switch -F2- / Driver side central locking lock unit -F220-",io:"Input",t:""},
+{p:20,d:"Front passenger door contact switch -F3- / Front passenger side central locking lock unit -F221-",io:"Input",t:""},
+{p:21,d:"Front passenger side central locking lock unit -F221-",io:"Input",t:""},
+{p:22,d:"Driver side central locking lock unit -F220-",io:"Input",t:""},
+{p:23,d:"Childproof lock button -E318- / Rear lid handle release button -E234-",io:"Input",t:""},
+{p:24,d:"Driver side central locking lock unit -F220- / Interior monitor send & receive module 1 -G303- / Anti-theft and tilt system control unit -J529-",io:"Input",t:""},
+{p:25,d:"Driver side interior locking switch -E150-",io:"Input",t:""},
+{p:26,d:"Right sliding door control unit -J731- / Dual signal inverter relay -J741- / Driver side interior locking switch -E150- / Rear right central locking lock unit -F223-",io:"Input",t:""},
+{p:27,d:"Bonnet contact switch -F266-",io:"Input",t:""},
+{p:28,d:"Hazard warning light switch -E3-",io:"Input",t:""},
+{p:29,d:"Airbag coil connector and return spring with slip ring -F138-",io:"Input",t:""},
+{p:30,d:"Rear lid control unit -J605- / Rear lid contact switch -F111-",io:"Input",t:""},
+{p:31,d:"B534 Connection 1 (luggage compartment switch) / Luggage compartment light -W18- / Luggage compartment light switch -F5-",io:"Input",t:""},
+{p:32,d:"Turn signal switch -E2- / 10-pin connector -T10bj-",io:"Input",t:""},
+{p:33,d:"Turn signal switch -E2- / 10-pin connector -T10bj-",io:"Input",t:""},
+{p:34,d:"Left/Right sliding door control units -J558-/-J731- / Dual signal inverter relay -J741- / Rear left central locking lock unit -F222- / Rear left door contact switch -F10-",io:"Input",t:""},
+{p:35,d:"Sliding sunroof adjustment control unit -J245-",io:"Output",t:""},
+{p:36,d:"Seat heating control unit with regulator -J396- / Rear right door contact switch -F11-",io:"Output",t:""},
+{p:37,d:"Light switch -E1-",io:"Input",t:""},
+{p:38,d:"Driver side heated exterior mirror -Z4- / Front passenger side heated exterior mirror -Z5-",io:"Output",t:""},
+{p:39,d:"Vacant",io:"Vacant",t:""},
+{p:40,d:"Right side light bulb -M3-",io:"Output",t:"58r"},
+{p:41,d:"Left side light bulb -M1-",io:"Output",t:"58l"},
+{p:42,d:"Fuse 19 on fuse holder B -SB19- / B518 Connection (86s), in main wiring harness",io:"Input",t:""},
+{p:43,d:"B131 Connection (54), in interior wiring harness / Engine control unit -J623- / Brake light switch -F- / ABS control unit -J104-",io:"Input",t:""},
+{p:44,d:"Fuse 16 on fuse holder B -SB16-",io:"Input",t:""},
+{p:45,d:"B8 Positive connection (58), in light switch wiring harness",io:"Input",t:""},
+{p:46,d:"Vacant",io:"Vacant",t:""},{p:47,d:"Vacant",io:"Vacant",t:""},
+{p:48,d:"Sliding sunroof adjustment control unit -J245-",io:"Output",t:""},
+{p:49,d:"Headlight washer system relay -J39-",io:"Output",t:""},
+{p:50,d:"Vacant",io:"Vacant",t:""},
+{p:51,d:"Entry and footwell light relay -J348-",io:"Output",t:""},
+{p:52,d:"Electric fuel pump 2 relay -J49-",io:"Output",t:""},
+{p:53,d:"Vacant",io:"Vacant",t:""},{p:54,d:"Vacant",io:"Vacant",t:""},
+{p:55,d:"Engine control unit -J623- / Starter inhibitor relay -J207-",io:"Output",t:""},
+{p:56,d:"Hazard warning light switch -E3-",io:"Output",t:""},
+{p:57,d:"Deactivation button for vehicle inclination sender -E360-",io:"Output",t:""},
+{p:58,d:"Central locking deadlock function warning lamp SAFE -K133-",io:"Output",t:""},
+{p:59,d:"Vacant",io:"Vacant",t:""},
+{p:60,d:"Heated rear window switch -E15-",io:"Output",t:""},
+{p:61,d:"Vacant",io:"Vacant",t:""},
+{p:62,d:"Headlight dipper/flasher switch -E4- / Alarm system control unit -J85- / B166 Connection (56a), in interior wiring harness",io:"Input",t:""},
+{p:63,d:"Fuse 12 on fuse holder C -SC12- (left dipped beam / main beam)",io:"Input",t:"30"},
+{p:64,d:"Fuse 20 on fuse holder C -SC20- (Heated exterior mirrors -Z4- -Z5-)",io:"Input",t:""},
+{p:65,d:"Interior lights & compartment lights / Fuse 17 on fuse holder C -SC17- / Fuse 24 on fuse holder C -SC24-",io:"Output",t:"30G"},
+{p:66,d:"Side light / Interior lights & compartment lights / Fuse 17 on fuse holder C -SC17- / Fuse 7 on fuse holder B -SB7-",io:"Input",t:"30"},
+{p:67,d:"Vacant",io:"Vacant",t:""},
+{p:68,d:"Fuse 32 on fuse holder B -SB32- (Windscreen wiper motor -V-)",io:"Input",t:"30"},
+{p:69,d:"Windscreen wiper motor -V-",io:"Output",t:""},
+{p:70,d:"167 Earth connection 4, in engine compartment wiring harness (Windscreen wiper motor -V-)",io:"Input",t:"31"},
+{p:71,d:"Windscreen wiper motor -V-",io:"Output",t:""},
+{p:72,d:"Horn or dual tone horn -H1-",io:"Output",t:""},
+{p:73,d:"Fuse 31 on fuse holder B -SB31- (Horn or dual tone horn -H1-)",io:"Input",t:"30"},
+],
+T73b:[
+{p:1,d:"Left dip beam screen motor -V294- (gas discharge headlights only)",io:"Output",t:"56a"},
+{p:2,d:"B456 Connection (56b), in main wiring harness / Right gas discharge light control unit -J344- / Steering column electronics control unit -J527-",io:"Output",t:"56b"},
+{p:3,d:"Left side light bulb -M1- (gas discharge headlights only)",io:"Output",t:"85"},
+{p:4,d:"Vacant",io:"Vacant",t:""},{p:5,d:"Vacant",io:"Vacant",t:""},{p:6,d:"Vacant",io:"Vacant",t:""},
+{p:7,d:"Fog light switch -E7-",io:"Output",t:""},
+{p:8,d:"Vacant",io:"Vacant",t:""},
+{p:9,d:"Fuse 17 on fuse holder F -SF17- / 10-pin connector -T10bl",io:"Output",t:"FL"},
+{p:10,d:"Right fog light bulb -L23-",io:"Output",t:"FL"},
+{p:11,d:"Fuse 35 on fuse holder C -SC35- (Left & right reversing lights / fog lights turning)",io:"Input",t:"30"},
+{p:12,d:"Reversing light switch -F4- / 10-pin connector -T10bh",io:"Output",t:"RFL"},
+{p:13,d:"Fuse 36 on fuse holder B -SB36- (Brake light and turn signal)",io:"Input",t:"30"},
+{p:14,d:"Front left turn signal -M5- / Rear left turn signal -M6- / Left side turn signal -M18- / Left roof turn signal -M23-",io:"Output",t:"BLL"},
+{p:15,d:"Front right turn signal -M7- / Rear right turn signal -M8- / Right side turn signal -M19- / Right roof turn signal -M24-",io:"Output",t:"BLL"},
+{p:16,d:"Left brake and tail light bulb -M21- / 6-pin connector -T6bn / High level brake light -M25-",io:"Output",t:"54"},
+{p:17,d:"B549 Connection 2 (LIN bus) / Driver door control unit -J386- / Front passenger door control unit -J387-",io:"LIN",t:""},
+{p:18,d:"B390 Connection 1 (drive train CAN bus, low), in main wiring harness",io:"CAN",t:"CAN-L"},
+{p:19,d:"B383 Connection 1 (drive train CAN bus, high), in main wiring harness",io:"CAN",t:"CAN-H"},
+{p:20,d:"B397 Connection 1 (convenience CAN bus, high), in main wiring harness",io:"CAN",t:"CAN-H"},
+{p:21,d:"B406 Connection 1 (convenience CAN bus, low), in main wiring harness",io:"CAN",t:"CAN-L"},
+{p:22,d:"16-pin connector -T16/14- (diagnosis connection)",io:"CAN",t:"CAN-L"},
+{p:23,d:"16-pin connector -T16/6- (diagnosis connection)",io:"CAN",t:"CAN-H"},
+{p:24,d:"Rain sensor -G213-",io:"LIN",t:""},
+{p:25,d:"Left sliding door contact strip -F353- / Left sliding door control unit -J558-",io:"Input",t:""},
+{p:26,d:"Right sliding door contact strip -F352- / B441 Connection (CCS) / Right sliding door control unit -J731-",io:"Input",t:""},
+{p:27,d:"Intermittent wiper switch -E22- / Rear wiper switch -E34- / Intermittent wiper regulator -E38- / Washer pump switch -E44-",io:"Input",t:""},
+{p:28,d:"Vacant",io:"Vacant",t:""},{p:29,d:"Vacant",io:"Vacant",t:""},
+{p:30,d:"Deactivation button for vehicle inclination sender -E360-",io:"Input",t:""},
+{p:31,d:"Heated rear window switch -E15-",io:"Input",t:""},
+{p:32,d:"Windscreen wiper motor -V-",io:"Input",t:""},
+{p:33,d:"Vacant",io:"Vacant",t:""},
+{p:34,d:"B340 Connection 1 (58d), in main wiring harness",io:"Input",t:"58d"},
+{p:35,d:"Cruise control system switch -E45-",io:"Input",t:"CCS"},
+{p:36,d:"Alarm horn -H12- (ATA models only)",io:"LIN",t:""},
+{p:37,d:"B444 Connection 1 (diagnosis) / 16-pin connector -T16/7-",io:"Input",t:""},
+{p:38,d:"377 Earth connection 12, in main wiring harness (internal supply)",io:"Input",t:"31"},
+{p:39,d:"Fuse 3 on fuse holder B -SB3- (internal supply)",io:"Input",t:"30"},
+{p:40,d:"Vacant",io:"Vacant",t:""},{p:41,d:"Vacant",io:"Vacant",t:""},
+{p:42,d:"Cruise control system switch -E45-",io:"Input",t:"CCS+"},
+{p:43,d:"Rear fog light switch -E18- (gas discharge headlights only)",io:"Input",t:""},
+{p:44,d:"Button for automatic distance control -E357- / Steering column electronics control unit -J527-",io:"Input",t:""},
+{p:45,d:"B441 Connection (CCS), in main wiring harness",io:"Input",t:""},
+{p:46,d:"Cruise control system (CCS) SET button -E227-",io:"Input",t:""},
+{p:47,d:"Cruise control system (CCS) SET button -E227- / Airbag coil connector and return spring with slip ring -F138-",io:"Input",t:""},
+{p:48,d:"Airbag coil connector and return spring with slip ring -F138-",io:"Input",t:""},
+{p:49,d:"Alternator -C- / Voltage regulator -C1-",io:"Input",t:"61"},
+{p:50,d:"Ignition/starter switch -D- / Fuse 23 on fuse holder B -SB23- / B239 Positive connection 1 (50)",io:"Input",t:"50"},
+{p:51,d:"Ignition/starter switch -D- / Fuse 5 on fuse holder C -SC5- / B173 Positive connection 2 (X)",io:"Input",t:"75X"},
+{p:52,d:"Light switch -E1-",io:"Input",t:"Headlight washer/main beam"},
+{p:53,d:"Intermittent wiper switch -E22- / Rear wiper switch -E34- / Intermittent wiper regulator -E38- / Washer pump switch -E44-",io:"Input",t:"S2"},
+{p:54,d:"Vacant",io:"Vacant",t:""},
+{p:55,d:"Engine control unit -J623- (automatic gearbox only)",io:"Input",t:""},
+{p:56,d:"Rear lid lock unit -F256-",io:"Input",t:""},
+{p:57,d:"Vacant",io:"Vacant",t:""},
+{p:58,d:"Exterior mirror heater button -E231-",io:"Input",t:""},
+{p:59,d:"Fuse 34 on fuse holder D -SD34- (reference battery voltage)",io:"Input",t:"30"},
+{p:60,d:"377 Earth connection 12, in main wiring harness (reference battery voltage)",io:"Input",t:"31"},
+{p:61,d:"Windscreen and rear window washer pump -V59-",io:"Input",t:""},
+{p:62,d:"Intermittent wiper regulator -E38-",io:"Input",t:"INT"},
+{p:63,d:"Heated rear window -Z1- / Left wing door heated rear window -Z26- / Right wing door heated rear window -Z27-",io:"Output",t:""},
+{p:64,d:"Vacant",io:"Vacant",t:""},{p:65,d:"Vacant",io:"Vacant",t:""},{p:66,d:"Vacant",io:"Vacant",t:""},
+{p:67,d:"Fuse 9 on fuse holder B -SB9- (Heated rear window -Z1-, -Z26-, -Z27-)",io:"Input",t:"30"},
+{p:68,d:"Fuse 14 on fuse holder C -SC14- (right dipped beam / main beam)",io:"Input",t:"30"},
+{p:69,d:"Vacant",io:"Vacant",t:""},{p:70,d:"Vacant",io:"Vacant",t:""},
+{p:71,d:"Vacant",io:"Vacant",t:""},{p:72,d:"Vacant",io:"Vacant",t:""},{p:73,d:"Vacant",io:"Vacant",t:""},
+]};
+
+// ── STORAGE ─────────────────────────────────────────────────
+const PINS=73;
+let cable='A', tdata={A:{},B:{}}, openNotes={};
+function sk(c,p){return`bcm_t5_${c}_${p}`}
+function loadAll(){for(const c of['A','B'])for(let p=1;p<=PINS;p++){try{const r=localStorage.getItem(sk(c,p));if(r)tdata[c][p]=JSON.parse(r)}catch(e){}}}
+function savePin(c,p){try{localStorage.setItem(sk(c,p),JSON.stringify(tdata[c][p]||{}))}catch(e){}}
+function status(c,p){const d=tdata[c][p];return(!d||!d.v)?'empty':'done'}
+
+// ── EXPECTED VOLTAGE ─────────────────────────────────────────
+function getExp(c,p){
+  const key=c==='A'?'T73a':'T73b';
+  const row=(PIN_DATA[key]||[]).find(r=>r.p===p);
+  if(!row||row.io==='Vacant')return null;
+  const t=row.t||'',io=row.io,d=row.d.toLowerCase();
+  if(io==='CAN')return{label:'CAN ~2.5V',min:2.0,max:3.5,type:'can'};
+  if(io==='LIN')return{label:'LIN 0/12V',min:0,max:12.5,type:'signal'};
+  if(t==='31'||d.includes('earth connection'))return{label:'GND 0V',min:-0.5,max:0.8,type:'ground'};
+  if(t==='30')return{label:'+12V perm',min:11.0,max:14.5,type:'battery'};
+  if(t==='30G')return{label:'+12V sw',min:11.0,max:14.5,type:'battery'};
+  if(t==='50')return{label:'+12V crank',min:8.0,max:14.5,type:'battery'};
+  if(t==='75X')return{label:'+12V ign',min:11.0,max:14.5,type:'battery'};
+  if(t==='61')return{label:'~2-5V charge',min:1.5,max:6.0,type:'signal'};
+  if(['58d','58r','58l','FL','RFL'].includes(t))return{label:'+12V lights',min:11.0,max:14.5,type:'lights'};
+  if(t==='54')return{label:'+12V brake',min:11.0,max:14.5,type:'lights'};
+  if(t==='BLL')return{label:'0/12V flash',min:0,max:14.5,type:'signal'};
+  if(t==='85')return{label:'~0V coil',min:-0.5,max:1.5,type:'ground'};
+  if(['56a','56b','CCS','CCS+','S2','INT'].includes(t))return{label:'0/12V signal',min:0,max:14.5,type:'signal'};
+  if(io==='Output')return{label:'0/12V out',min:0,max:14.5,type:'signal'};
+  if(io==='Input')return{label:'0/12V in',min:0,max:14.5,type:'signal'};
+  return null;
+}
+
+function cmpV(val,exp){
+  if(!exp)return null;
+  const v=parseFloat(val.replace(/[^0-9.\-]/g,''));
+  if(isNaN(v))return null;
+  const{min,max,type}=exp;
+  if(type==='ground'){
+    return v>=-0.5&&v<=0.8?{cls:'cp-good',text:'✓ GND OK',d:v.toFixed(2)+'V'}:{cls:'cp-bad',text:'✗ Not GND',d:v.toFixed(2)+'V'};
+  }
+  if(type==='can'){
+    return v>=2.0&&v<=3.5?{cls:'cp-good',text:'✓ CAN OK',d:v.toFixed(2)+'V'}:{cls:'cp-bad',text:'✗ CAN fault',d:v.toFixed(2)+'V'};
+  }
+  if(type==='signal'){
+    if(v<0.8)return{cls:'cp-sig',text:'LOW / OFF',d:v.toFixed(2)+'V'};
+    if(v>=10.5)return{cls:'cp-good',text:'HIGH / ON',d:v.toFixed(2)+'V'};
+    return{cls:'cp-bad',text:'✗ Unexpected',d:v.toFixed(2)+'V'};
+  }
+  if(type==='lights'){
+    if(v<0.8)return{cls:'cp-sig',text:'Lights OFF',d:v.toFixed(2)+'V'};
+    if(v>=10.5)return{cls:'cp-good',text:'✓ Lights ON',d:v.toFixed(2)+'V'};
+    return{cls:'cp-bad',text:'✗ Unexpected',d:v.toFixed(2)+'V'};
+  }
+  // battery
+  const mid=(min+max)/2,delta=+(v-mid).toFixed(2),sign=delta>=0?'+':'';
+  if(v>=min&&v<=max)return{cls:'cp-good',text:'✓ Good',d:sign+delta+'V'};
+  if(v<min&&v>=0)return{cls:'cp-low',text:'⚠ Low',d:v.toFixed(2)+'V'};
+  if(v>max)return{cls:'cp-high',text:'⚠ High',d:v.toFixed(2)+'V'};
+  return{cls:'cp-bad',text:'✗ Fault',d:v.toFixed(2)+'V'};
+}
+
+// ── TRACKER ──────────────────────────────────────────────────
+function switchCable(c){
+  cable=c; openNotes={};
+  document.getElementById('ct-a').classList.toggle('active',c==='A');
+  document.getElementById('ct-b').classList.toggle('active',c==='B');
+  renderPins();
+}
+
+function updateStats(){
+  let done=0;
+  for(let p=1;p<=PINS;p++)if(status(cable,p)==='done')done++;
+  document.getElementById('s-done').textContent=done;
+  document.getElementById('s-left').textContent=PINS-done;
+  const pct=Math.round(done/PINS*100);
+  document.getElementById('prog-pct').textContent=pct+'%';
+  document.getElementById('prog-fill').style.width=pct+'%';
+  document.getElementById('prog-lbl').textContent=`Cable ${cable} progress`;
+}
+
+function renderPins(){
+  const q=document.getElementById('search').value.toLowerCase().trim();
+  const f=document.getElementById('filter').value;
+  const grid=document.getElementById('pin-grid');
+  grid.innerHTML='';
+  let shown=0;
+  for(let p=1;p<=PINS;p++){
+    const st=status(cable,p);
+    if(f!=='all'&&f!==st)continue;
+    if(q&&!(String(p)).includes(q)&&!('pin '+p).includes(q))continue;
+    shown++;
+    const d=tdata[cable][p]||{};
+    const exp=getExp(cable,p);
+    const cmp=d.v?cmpV(d.v,exp):null;
+    let cls='pin-card';
+    if(d.v){
+      if(!cmp||cmp.cls==='cp-good'||cmp.cls==='cp-sig')cls+=' has-val';
+      else if(cmp.cls==='cp-bad')cls+=' card-bad';
+      else cls+=' card-warn';
+    }
+    const noteOpen=openNotes[p];
+    const cmpHtml=cmp?`<div class="cmp-bar"><span class="cmp-pill ${cmp.cls}">${cmp.text}</span><span class="cmp-delta">${cmp.d}</span></div>`:'';
+    const card=document.createElement('div');
+    card.className=cls;
+    card.innerHTML=`
+      <div class="pin-top">
+        <span class="pin-num">Pin ${p}</span>
+        <span class="pin-badge ${st==='done'?'badge-ok':'badge-empty'}">${st==='done'?'OK':'—'}</span>
+      </div>
+      <input class="pin-input" type="text" inputmode="decimal" placeholder="e.g. 12.4" value="${d.v||''}" data-pin="${p}" oninput="onVolts(this)"/>
+      ${cmpHtml}
+      <button class="note-btn" onclick="toggleNote(${p})">📝 ${d.note?d.note.substring(0,20)+(d.note.length>20?'…':''):'add note'}</button>
+      ${noteOpen?`<div class="note-area"><input class="note-input" type="text" placeholder="Note…" value="${d.note||''}" data-pin="${p}" oninput="onNote(this)"/></div>`:''}
+    `;
+    grid.appendChild(card);
+  }
+  if(!shown){const e=document.createElement('div');e.className='empty';e.textContent='No pins match.';grid.appendChild(e);}
+  updateStats();
+}
+
+function onVolts(el){
+  const p=+el.dataset.pin;
+  tdata[cable][p]=tdata[cable][p]||{};
+  tdata[cable][p].v=el.value.trim();
+  savePin(cable,p);
+  const card=el.closest('.pin-card');
+  const badge=card.querySelector('.pin-badge');
+  const st=status(cable,p);
+  const exp=getExp(cable,p);
+  const cmp=el.value.trim()?cmpV(el.value.trim(),exp):null;
+  badge.className='pin-badge '+(st==='done'?'badge-ok':'badge-empty');
+  badge.textContent=st==='done'?'OK':'—';
+  card.className='pin-card';
+  if(el.value.trim()){
+    if(!cmp||cmp.cls==='cp-good'||cmp.cls==='cp-sig')card.className+=' has-val';
+    else if(cmp.cls==='cp-bad')card.className+=' card-bad';
+    else card.className+=' card-warn';
+  }
+  let bar=card.querySelector('.cmp-bar');
+  if(cmp){
+    const h=`<span class="cmp-pill ${cmp.cls}">${cmp.text}</span><span class="cmp-delta">${cmp.d}</span>`;
+    if(bar){bar.innerHTML=h;}else{bar=document.createElement('div');bar.className='cmp-bar';bar.innerHTML=h;el.insertAdjacentElement('afterend',bar);}
+  }else if(bar){bar.remove();}
+  updateStats();
+}
+
+function onNote(el){
+  const p=+el.dataset.pin;
+  tdata[cable][p]=tdata[cable][p]||{};
+  tdata[cable][p].note=el.value;
+  savePin(cable,p);
+}
+
+function toggleNote(p){openNotes[p]=!openNotes[p];renderPins();}
+
+function clearCable(){
+  if(!confirm(`Clear all data for Cable ${cable}?`))return;
+  for(let p=1;p<=PINS;p++){localStorage.removeItem(sk(cable,p));delete tdata[cable][p];}
+  openNotes={};renderPins();
+}
+
+// ── INFO ─────────────────────────────────────────────────────
+let infoCable='T73a';
+function switchInfoCable(k){
+  infoCable=k;
+  document.getElementById('it-a').classList.toggle('active',k==='T73a');
+  document.getElementById('it-b').classList.toggle('active',k==='T73b');
+  document.getElementById('isearch').value='';
+  document.getElementById('ifilter').value='all';
+  renderInfo();
+}
+const tcls={Input:'t-input',Output:'t-output',Vacant:'t-vacant',CAN:'t-can',LIN:'t-lin'};
+const bcls={Input:'ib-input',Output:'ib-output',Vacant:'ib-vacant',CAN:'ib-can',LIN:'ib-lin'};
+function renderInfo(){
+  const q=document.getElementById('isearch').value.toLowerCase().trim();
+  const f=document.getElementById('ifilter').value;
+  const list=document.getElementById('ilist');
+  list.innerHTML='';let count=0;
+  (PIN_DATA[infoCable]||[]).forEach(pin=>{
+    const io=pin.io.toLowerCase();
+    if(f!=='all'&&io!==f)return;
+    if(q&&!('pin '+pin.p).includes(q)&&!(String(pin.p)).includes(q)&&!pin.d.toLowerCase().includes(q)&&!pin.t.toLowerCase().includes(q))return;
+    count++;
+    const card=document.createElement('div');
+    card.className='icard '+(tcls[pin.io]||'');
+    let meta=`<span class="ibadge ${bcls[pin.io]||'ib-vacant'}">${pin.io}</span>`;
+    if(pin.t)meta+=`<span class="ibadge ib-term">${pin.t}</span>`;
+    card.innerHTML=`<div class="ipnum">${pin.p}</div><div class="ibody"><div class="idesc">${pin.d}</div><div class="imeta">${meta}</div></div>`;
+    list.appendChild(card);
+  });
+  document.getElementById('icount').textContent=`Showing ${count} of 73 pins`;
+  if(!count){const e=document.createElement('div');e.className='iempty';e.textContent='No pins match.';list.appendChild(e);}
+}
+
+// ── PAGE SWITCH ───────────────────────────────────────────────
+function switchPage(page){
+  document.getElementById('page-tracker').style.display=page==='tracker'?'block':'none';
+  document.getElementById('page-info').style.display=page==='info'?'block':'none';
+  document.querySelectorAll('.nav-tab').forEach((t,i)=>t.classList.toggle('active',['tracker','info'][i]===page));
+  if(page==='info')renderInfo();
+}
+
+// ── MODAL / PRINT ─────────────────────────────────────────────
+function buildTable(c){
+  let rows='',count=0;
+  for(let p=1;p<=PINS;p++){
+    const d=tdata[c][p];const v=d&&d.v?d.v:'';if(!v)continue;count++;
+    const exp=getExp(c,p);const cmp=exp?cmpV(v,exp):null;
+    const expTxt=exp?exp.label:'—';const cmpTxt=cmp?cmp.text:'—';
+    const col=cmp&&cmp.cls==='cp-good'?'var(--success)':cmp&&cmp.cls==='cp-bad'?'#b91c1c':'#a16207';
+    rows+=`<tr><td class="res-tbl" style="color:var(--text2);font-size:12px">Pin ${String(p).padStart(2,'0')}</td><td style="font-family:monospace;font-weight:600;color:var(--accent)">${v}</td><td style="font-size:12px;color:var(--text2)">${expTxt}</td><td style="font-size:12px;font-weight:600;color:${col}">${cmpTxt}</td><td style="font-size:12px;color:var(--text2);font-style:italic">${d.note||''}</td></tr>`;
+  }
+  if(!rows)return`<p class="no-data">No voltages recorded for Cable ${c} yet.</p>`;
+  return`<div class="sum-row"><span><strong>${count}</strong> / ${PINS} tested</span><span><strong>${PINS-count}</strong> remaining</span></div>
+  <table class="res-tbl" style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th>Pin</th><th>Measured</th><th>Expected</th><th>Result</th><th>Note</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+function openModal(){
+  const body=document.getElementById('modal-body');
+  let html=`<p style="font-size:12px;color:var(--text3);margin-bottom:14px">Generated: ${new Date().toLocaleString()}</p>`;
+  for(const c of['A','B'])html+=`<div class="res-sec"><h3>Cable ${c} (T73${c.toLowerCase()})</h3>${buildTable(c)}</div>`;
+  body.innerHTML=html;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal(){document.getElementById('modal-overlay').classList.remove('open');}
+function handleOverlay(e){if(e.target===document.getElementById('modal-overlay'))closeModal();}
+function doPrint(){
+  const sheet=document.getElementById('print-sheet');
+  let html=`<h2 style="font-size:15px;margin-bottom:4px">BCM Voltage Results — VW T5</h2><p style="font-size:11px;color:#666;margin-bottom:14px">Printed: ${new Date().toLocaleString()}</p>`;
+  for(const c of['A','B']){
+    let rows='',count=0;
+    for(let p=1;p<=PINS;p++){const d=tdata[c][p];if(!d||!d.v)continue;count++;rows+=`<tr><td style="padding:4px 6px;border-bottom:1px solid #ddd;color:#555">Pin ${String(p).padStart(2,'0')}</td><td style="padding:4px 6px;border-bottom:1px solid #ddd;font-weight:bold;font-family:monospace">${d.v}</td><td style="padding:4px 6px;border-bottom:1px solid #ddd;color:#777;font-style:italic">${d.note||''}</td></tr>`;}
+    html+=`<div style="margin-bottom:18px;page-break-inside:avoid"><h3 style="font-size:12px;font-weight:bold;text-transform:uppercase;border-bottom:2px solid #333;padding-bottom:4px;margin-bottom:8px">Cable ${c} — ${count}/${PINS} tested</h3>`;
+    html+=rows?`<table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr><th style="text-align:left;padding:4px 6px;border-bottom:2px solid #ccc;font-size:9px;text-transform:uppercase">Pin</th><th style="text-align:left;padding:4px 6px;border-bottom:2px solid #ccc;font-size:9px;text-transform:uppercase">Voltage</th><th style="text-align:left;padding:4px 6px;border-bottom:2px solid #ccc;font-size:9px;text-transform:uppercase">Note</th></tr></thead><tbody>${rows}</tbody></table>`:`<p style="font-size:11px;color:#888">No data.</p>`;
+    html+=`</div>`;
+  }
+  sheet.innerHTML=html;window.print();
+}
+
+
+loadAll();
+renderPins();
+</script>
+</body>
+</html>
