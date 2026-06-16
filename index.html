@@ -493,16 +493,11 @@ function renderPins(){
     if(q&&!(String(p)).includes(q)&&!('pin '+p).includes(q))continue;
     shown++;
     const d=tdata[cable][p]||{};
-    const exp=getExp(cable,p);
-    const cmp=d.v?cmpV(d.v,exp):null;
     let cls='pin-card';
     if(d.v){
-      if(!cmp||cmp.cls==='cp-good'||cmp.cls==='cp-sig')cls+=' has-val';
-      else if(cmp.cls==='cp-bad')cls+=' card-bad';
-      else cls+=' card-warn';
+      cls+=' has-val';
     }
     const noteOpen=openNotes[p];
-    const cmpHtml=cmp?`<div class="cmp-bar"><span class="cmp-pill ${cmp.cls}">${cmp.text}</span><span class="cmp-delta">${cmp.d}</span></div>`:'';
     const card=document.createElement('div');
     card.className=cls;
     card.innerHTML=`
@@ -511,7 +506,6 @@ function renderPins(){
         <span class="pin-badge ${st==='done'?'badge-ok':'badge-empty'}">${st==='done'?'OK':'—'}</span>
       </div>
       <input class="pin-input" type="text" inputmode="decimal" placeholder="e.g. 12.4" value="${d.v||''}" data-pin="${p}" oninput="onVolts(this)"/>
-      ${cmpHtml}
       <button class="note-btn" onclick="toggleNote(${p})">📝 ${d.note?d.note.substring(0,20)+(d.note.length>20?'…':''):'add note'}</button>
       ${noteOpen?`<div class="note-area"><input class="note-input" type="text" placeholder="Note…" value="${d.note||''}" data-pin="${p}" oninput="onNote(this)"/></div>`:''}
     `;
@@ -529,21 +523,12 @@ function onVolts(el){
   const card=el.closest('.pin-card');
   const badge=card.querySelector('.pin-badge');
   const st=status(cable,p);
-  const exp=getExp(cable,p);
-  const cmp=el.value.trim()?cmpV(el.value.trim(),exp):null;
   badge.className='pin-badge '+(st==='done'?'badge-ok':'badge-empty');
   badge.textContent=st==='done'?'OK':'—';
   card.className='pin-card';
   if(el.value.trim()){
-    if(!cmp||cmp.cls==='cp-good'||cmp.cls==='cp-sig')card.className+=' has-val';
-    else if(cmp.cls==='cp-bad')card.className+=' card-bad';
-    else card.className+=' card-warn';
+    card.className+=' has-val';
   }
-  let bar=card.querySelector('.cmp-bar');
-  if(cmp){
-    const h=`<span class="cmp-pill ${cmp.cls}">${cmp.text}</span><span class="cmp-delta">${cmp.d}</span>`;
-    if(bar){bar.innerHTML=h;}else{bar=document.createElement('div');bar.className='cmp-bar';bar.innerHTML=h;el.insertAdjacentElement('afterend',bar);}
-  }else if(bar){bar.remove();}
   updateStats();
 }
 
@@ -608,14 +593,11 @@ function buildTable(c){
   let rows='',count=0;
   for(let p=1;p<=PINS;p++){
     const d=tdata[c][p];const v=d&&d.v?d.v:'';if(!v)continue;count++;
-    const exp=getExp(c,p);const cmp=exp?cmpV(v,exp):null;
-    const expTxt=exp?exp.label:'—';const cmpTxt=cmp?cmp.text:'—';
-    const col=cmp&&cmp.cls==='cp-good'?'var(--success)':cmp&&cmp.cls==='cp-bad'?'#b91c1c':'#a16207';
-    rows+=`<tr><td class="res-tbl" style="color:var(--text2);font-size:12px">Pin ${String(p).padStart(2,'0')}</td><td style="font-family:monospace;font-weight:600;color:var(--accent)">${v}</td><td style="font-size:12px;color:var(--text2)">${expTxt}</td><td style="font-size:12px;font-weight:600;color:${col}">${cmpTxt}</td><td style="font-size:12px;color:var(--text2);font-style:italic">${d.note||''}</td></tr>`;
+    rows+=`<tr><td class="res-tbl" style="color:var(--text2);font-size:12px">Pin ${String(p).padStart(2,'0')}</td><td style="font-family:monospace;font-weight:600;color:var(--accent)">${v}</td><td style="font-size:12px;color:var(--text2);font-style:italic">${d.note||''}</td></tr>`;
   }
   if(!rows)return`<p class="no-data">No voltages recorded for Cable ${c} yet.</p>`;
   return`<div class="sum-row"><span><strong>${count}</strong> / ${PINS} tested</span><span><strong>${PINS-count}</strong> remaining</span></div>
-  <table class="res-tbl" style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th>Pin</th><th>Measured</th><th>Expected</th><th>Result</th><th>Note</th></tr></thead><tbody>${rows}</tbody></table>`;
+  <table class="res-tbl" style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th>Pin</th><th>Measured</th><th>Note</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 function openModal(){
   const body=document.getElementById('modal-body');
